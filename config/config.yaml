@@ -1,0 +1,104 @@
+# StoryShorts AI — default configuration
+# Every tunable value for the pipeline lives here. Nothing should be
+# hardcoded in application code; modules read their settings through
+# config.settings.Config instead.
+
+project:
+  name: "StoryShorts AI"
+  environment: "production"   # "production" or "test"
+
+schedule:
+  shorts_per_day: 5          # how many Shorts to make per run (default batch)
+
+story:
+  min_seconds: 20
+  max_seconds: 30
+  language: "en"
+  tone: "reddit_storytime"
+  candidates_per_run: 1        # generate 1 story, score it, keep it (fast)
+  min_acceptable_score: 7.0    # out of 10; below this, discard and retry
+
+ai_providers:
+  # Order matters: first provider tried first, falls back down the list.
+  fallback_order:
+    - "openrouter"
+    - "groq"
+    - "gemini"
+  max_retries_per_provider: 2
+  retry_backoff_seconds: 5
+
+  gemini:
+    preferred_models:
+      - "gemini-2.5-flash"
+      - "gemini-2.0-flash"
+
+  openrouter:
+    # Free-tier slugs on OpenRouter change often. gpt-oss-20b and
+    # laguna-s return clean JSON; gemma/nemotron are good quality fallbacks.
+    preferred_models:
+      - "openai/gpt-oss-20b:free"
+      - "poolside/laguna-s-2.1:free"
+      - "google/gemma-4-31b-it:free"
+      - "google/gemma-4-26b-a4b-it:free"
+      - "nvidia/nemotron-3-nano-30b-a3b:free"
+
+  groq:
+    preferred_models:
+      - "llama-3.1-8b-instant"
+      - "llama-3.3-70b-versatile"
+
+tts:
+  primary_provider: "edge_tts"    # free, no key, best quality; gemini fallback below
+  fallback_provider: "gemini"
+  # Voice names differ per provider. `voice` is the Edge TTS name
+  # (e.g. "en-US-ChristopherNeural", see: edge-tts --list-voices).
+  voice: "en-US-ChristopherNeural"
+  # `gemini_voice` is the Gemini TTS star-name voice (e.g. "kore",
+  # "zephyr", "aoede", "charon"). Used only by Gemini TTS.
+  gemini_voice: "kore"
+  speaking_rate: 0.95
+
+video:
+  resolution: [1080, 1920]
+  fps: 30
+  audio_codec: "aac"
+  video_codec: "h264"
+  render_preset: "veryfast"     # x264 preset; faster = quicker renders
+  max_duration_seconds: 60
+  gameplay_dir: "assets/gameplay"
+  music_dir: "assets/music"
+  font_dir: "assets/fonts"
+  avoid_repeat_gameplay: true
+  music_volume_db: -18
+  music_fade_seconds: 2
+
+subtitles:
+  words_per_group: 2
+  font_size: 62
+  font_color: "white"
+  outline_color: "black"
+  # Reddit-post style card (dark panel in the center of the frame).
+  highlight_color: "yellow"    # current word colour while it's spoken
+  card_alpha: 0.5              # 0.0 transparent .. 1.0 solid card
+  card_header: "u/storytime"   # fake Reddit username bar on top of the card
+
+youtube:
+  visibility: "public"          # "public", "unlisted", or "private"
+  category_id: "24"             # Entertainment
+  default_language: "en"
+  made_for_kids: false
+
+logging:
+  level: "INFO"             # console only; no log files are written
+
+rate_limits:
+  # Requests per minute per provider, used to stay under free-tier caps.
+  requests_per_minute:
+    gemini: 5               # gemini-2.5-flash free tier
+    openrouter: 10          # free-model daily caps are handled by the chain
+    groq: 30
+  rate_limit_backoff_seconds: 30  # extra wait after an HTTP 429
+
+retry:
+  max_retries: 3
+  backoff_seconds: 5

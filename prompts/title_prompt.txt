@@ -1,0 +1,14 @@
+Here is a first-person story that will be posted as a YouTube Short:
+
+"{story}"
+
+Write 5 candidate titles for this video, in the style of viral storytime Shorts.
+
+Rules:
+- 25-55 characters each.
+- Short, curiosity-driven hook titles, no fake clickbait.
+- Examples of the style: "My Mom Had One Rule", "I Never Opened That Door Again", "The Last Text Changed Everything".
+- No emojis, no ALL CAPS.
+
+Respond with ONLY a single JSON object (no markdown fences, no extra text) in exactly this shape:
+{{"titles": ["title 1", "title 2", "title 3", "title 4", "title 5"]}}

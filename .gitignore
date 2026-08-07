@@ -1,0 +1,26 @@
+# Secrets — never commit these
+.env
+*.key
+client_secret*.json
+token.json
+credentials.json
+
+# Runtime artifacts
+temp/*
+!temp/.gitkeep
+output/*
+!output/.gitkeep
+logs/*.jsonl
+!logs/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

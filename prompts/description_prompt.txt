@@ -1,0 +1,13 @@
+Here is a short story that will be posted as a YouTube Short:
+
+"{story}"
+
+Write a YouTube description for this video.
+
+Rules:
+- Natural English, very short (1-2 sentences summarizing the story).
+- Include 3-5 relevant hashtags.
+- Nothing more (no links, no calls to action, no extra commentary).
+
+Respond with ONLY a single JSON object (no markdown fences, no extra text) in exactly this shape:
+{{"description": "<1-2 sentence summary>", "hashtags": ["#tag1", "#tag2", "#tag3"]}}
