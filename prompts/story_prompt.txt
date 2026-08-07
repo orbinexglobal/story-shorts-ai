@@ -6,8 +6,7 @@ Rules:
 - Build tension with a new detail every 2-3 seconds.
 - End on a satisfying twist or reveal in the very last sentence.
 - Conversational, simple English — like someone telling a friend.
-- Fully fictional and original. No real people, celebrities, or copyrighted characters.
-- No gore, no adult content, no politics, no real crimes, no religion.
+- Fully fictional and original. NEVER mention or reference any real person or public figure — no politicians, actors, singers, athletes, influencers, celebrities, royals, or any other real person, living or dead. No brand names or real company names. No politics, no real crimes, no religion, no gore, no adult content.
 - Never magical talking animals or fairy tales, no "Once upon a time", no moral-lesson endings.
 - Never ask viewers to subscribe. Never mention this is AI or Minecraft.
 - Length: when read aloud the story should take roughly {min_seconds}-{max_seconds} seconds (45-80 words).

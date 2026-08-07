@@ -15,7 +15,6 @@ from pathlib import Path
 
 from config.logging_setup import get_logger
 from config.settings import Config
-from video.subtitles import CARD_H, CARD_W, CARD_X, CARD_Y
 
 logger = get_logger(__name__)
 
@@ -61,8 +60,6 @@ def render_video(
         f"[0:v]trim=start=0:duration={duration},setpts=PTS-STARTPTS,"
         f"scale={width}:{height}:force_original_aspect_ratio=increase,"
         f"crop={width}:{height},"
-        f"drawbox=x={CARD_X}:y={CARD_Y}:w={CARD_W}:h={CARD_H}:"
-        f"color=black@{cfg.subtitles.card_alpha}:t=fill,"
         f"ass='{ass_filter_path}'[vout]"
     )
 

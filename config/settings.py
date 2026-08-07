@@ -95,15 +95,13 @@ class VideoConfig:
 
 @dataclass(frozen=True)
 class SubtitlesConfig:
-    """Burned-in subtitle appearance (Reddit-post card style)."""
+    """Burned-in subtitle appearance (karaoke style)."""
 
     words_per_group: int
     font_size: int
     font_color: str
     outline_color: str
     highlight_color: str
-    card_alpha: float
-    card_header: str
 
 
 @dataclass(frozen=True)
@@ -262,8 +260,6 @@ def load_config(path: Path | None = None) -> Config:
             font_color=subtitles["font_color"],
             outline_color=subtitles["outline_color"],
             highlight_color=subtitles.get("highlight_color", "yellow"),
-            card_alpha=float(subtitles.get("card_alpha", 0.5)),
-            card_header=subtitles.get("card_header", "u/storytime"),
         ),
         youtube=YouTubeConfig(
             visibility=youtube["visibility"],

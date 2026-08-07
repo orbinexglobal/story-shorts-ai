@@ -1,15 +1,11 @@
 """
-ASS subtitle generation in the viral "Reddit story" Shorts style.
+ASS subtitle generation in viral Shorts karaoke style.
 
-A dark card is drawn in the center of the frame (by the renderer) and
-the narration is rendered inside it as word-by-word captions: the
-sentence accumulates while the word currently being spoken pops in a
-highlight colour. Timing comes from the TTS provider's real
-word-boundary timestamps when available, falling back to an even spread
-across the narration duration.
-
-The card geometry constants must match the drawbox used in
-video/renderer.py.
+Captions appear one sentence at a time near the bottom of the frame.
+Inside a sentence the words accumulate as they are spoken and the word
+currently being spoken pops in a highlight colour (yellow by default).
+Timing comes from the TTS provider's real word-boundary timestamps when
+available, falling back to an even spread across the narration duration.
 """
 
 from __future__ import annotations
@@ -19,12 +15,6 @@ from pathlib import Path
 
 from config.settings import Config
 from providers.base import WordTiming
-
-# Card geometry (1080x1920 canvas) — keep in sync with renderer.py.
-CARD_X = 60
-CARD_Y = 620
-CARD_W = 960
-CARD_H = 680
 
 # ASS colours use &HAABBGGRR&.
 _HIGHLIGHT_COLOURS = {
@@ -37,23 +27,16 @@ _HIGHLIGHT_COLOURS = {
 
 _SENTENCE_END = re.compile(r"[.!?…]$")
 
+# Bottom-centre caption area on the 1080x1920 canvas.
+_ALIGNMENT = 2      # bottom-centre
+_MARGIN_V = 470     # distance from the bottom edge (~y 1450)
+
 
 def _format_timestamp(seconds: float) -> str:
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = seconds % 60
     return f"{hours}:{minutes:02d}:{secs:05.2f}"
-
-
-def _header_style(font_size: int) -> str:
-    """Small grey card header (the fake Reddit username bar)."""
-    header_margin_v = 1920 - (CARD_Y + 40)  # sits just inside the card's top edge
-    return (
-        "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
-        "Bold, Outline, Shadow, Alignment, MarginL, MarginR, MarginV\n"
-        f"Style: CardHeader,Arial,{max(font_size // 2, 20)},"
-        f"&H00AAAAAA,&H00000000,&H00000000,0,1,0,2,{CARD_X},{CARD_X},{header_margin_v}\n"
-    )
 
 
 def _even_word_timings(words: list[str], duration: float) -> list[WordTiming]:
@@ -74,7 +57,7 @@ def generate_ass(
     cfg: Config,
     out_path: Path,
 ) -> Path:
-    """Write a Reddit-card .ass file synced to the narration words."""
+    """Write a karaoke .ass file synced to the narration words."""
     words = narration_text.split()
     if not words:
         words = [""]
@@ -102,19 +85,10 @@ def generate_ass(
         "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
         "Bold, Outline, Shadow, Alignment, MarginL, MarginR, MarginV\n"
         f"Style: Default,Arial,{font_size},{base_ass},{outline_ass},"
-        f"&H00000000,1,{max(font_size // 12, 3)},0,5,{CARD_X},{CARD_X},0\n"
-        f"{_header_style(font_size)}\n"
+        f"&H00000000,1,{max(font_size // 12, 3)},0,{_ALIGNMENT},0,0,{_MARGIN_V}\n"
         "[Events]\n"
         "Format: Layer, Start, End, Style, Text\n"
     ]
-
-    # Card header (fake Reddit user bar).
-    header_text = cfg.subtitles.card_header
-    if header_text:
-        lines.append(
-            f"Dialogue: 0,0:00:00.00,{_format_timestamp(duration_seconds)},"
-            f"CardHeader,{header_text}\n"
-        )
 
     # Split word boundaries into sentences (punctuation signals the end).
     sentences: list[list[WordTiming]] = []
