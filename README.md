@@ -3,16 +3,19 @@
 An automation pipeline that takes a source video, cuts a segment,
 writes a first-person Reddit-style story over it, adds a title,
 word-synced captions and a narrated voice track, then renders and
-uploads the result as a YouTube Short. One run makes **5 Shorts**
-(the default daily batch) and uploads them — that's it.
+uploads the result as a YouTube Short. Each run makes **1 Short** and
+uploads it; GitHub Actions triggers the pipeline **5 times a day at
+different hours** (05:00 / 09:00 / 13:00 / 17:00 / 21:00 IST), so the
+day's uploads are spread out instead of going live at once.
 
 ## Quick start
 
 ```bash
 pip install -r requirements.txt
-python main.py --test     # makes 5 Shorts, renders them to output/, no upload
-python main.py            # makes 5 Shorts and uploads them to YouTube
-python main.py --count 3  # make 3 Shorts instead of the default 5
+python main.py --test     # makes 1 Short, renders it to output/, no upload
+python main.py            # makes 1 Short and uploads it to YouTube
+python main.py --count 3  # make 3 Shorts instead of the default
+python main.py --slot 2   # start from slot 2 of the day's clip shuffle
 ```
 
 Credentials are read from a local `.env` file (see SETUP.md for how to
@@ -31,8 +34,11 @@ create it): `OPENROUTER_API_KEY` (text AI) and the YouTube OAuth vars.
 
 ## Features
 
-- One command makes the whole daily batch: `schedule.shorts_per_day`
-  (default 5) in `config/config.yaml`
+- One command makes one Short: `schedule.shorts_per_day` (default 1)
+  in `config/config.yaml`
+- Gameplay clips rotate daily with no fixed pattern — each scheduled
+  upload (`--slot`) starts at a different position in a date-seeded
+  shuffle, so the 7 videos are used once each before repeating
 - AI text fallback chain (OpenRouter → Groq → Gemini) — if one
   provider or free model dies, the next is tried automatically
 - TTS fallback chain (Edge TTS → Gemini TTS; Edge TTS needs no key)
@@ -75,9 +81,10 @@ through `config.settings.load_config()`; nothing is hardcoded elsewhere.
 
 ## GitHub Actions
 
-`.github/workflows/pipeline.yml` runs the pipeline once a day (cron
-`30 8 * * *`); each run makes and uploads the daily batch of 5 Shorts.
-Set the repo secrets listed in the workflow for automated deployment.
+`.github/workflows/pipeline.yml` runs the pipeline 5 times a day at
+different hours (cron `30 23/3/7/11/15 * * *`, UTC); each run makes and
+uploads exactly one Short, then stops. Set the repo secrets listed in
+the workflow for automated deployment.
 
 ## Testing
 

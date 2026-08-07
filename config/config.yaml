@@ -8,7 +8,9 @@ project:
   environment: "production"   # "production" or "test"
 
 schedule:
-  shorts_per_day: 5          # how many Shorts to make per run (default batch)
+  # One Short per run. The GitHub Actions workflow triggers 5 times a
+  # day at different hours; each run uploads exactly one Short and stops.
+  shorts_per_day: 1          # how many Shorts to make per run
 
 story:
   min_seconds: 20

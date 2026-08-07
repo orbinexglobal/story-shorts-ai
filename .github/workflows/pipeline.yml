@@ -2,8 +2,13 @@ name: StoryShorts AI Pipeline
 
 on:
   schedule:
-    # One run per day. Each run makes 5 Shorts (config.yaml -> schedule.shorts_per_day).
-    - cron: "30 8 * * *"
+    # One Short per run, 5 runs/day, each at a different hour.
+    # Times below are UTC; in IST they are 05:00 / 09:00 / 13:00 / 17:00 / 21:00.
+    - cron: "30 23 * * *"   # 05:00 IST
+    - cron: "30 3 * * *"    # 09:00 IST
+    - cron: "30 7 * * *"    # 13:00 IST
+    - cron: "30 11 * * *"   # 17:00 IST
+    - cron: "30 15 * * *"   # 21:00 IST
   workflow_dispatch: {}   # allows manually triggering a run from the Actions tab
 
 jobs:
@@ -26,7 +31,9 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Run pipeline
+      # Each run uploads exactly ONE Short, then stops. The slot is derived
+      # from the current UTC hour so the day's 5 uploads use distinct clips.
+      - name: Run pipeline (1 short)
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -34,4 +41,15 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-        run: python main.py
+        run: |
+          HOUR=$(date -u +%H)
+          case $HOUR in
+            23) SLOT=0 ;;
+            3)  SLOT=1 ;;
+            7)  SLOT=2 ;;
+            11) SLOT=3 ;;
+            15) SLOT=4 ;;
+            *)  SLOT=$((10#$HOUR % 7)) ;;
+          esac
+          echo "UTC hour $HOUR -> slot $SLOT"
+          python main.py --count 1 --slot "$SLOT"

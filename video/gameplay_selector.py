@@ -12,6 +12,7 @@ import json
 import random
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from config.logging_setup import get_logger
@@ -21,6 +22,11 @@ logger = get_logger(__name__)
 
 _VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".avi"}
 _STATE_FILE = Path("temp") / "last_gameplay.json"
+
+
+def _day_seed() -> str:
+    """Stable seed for one UTC day, so picks rotate daily without a pattern."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
 class NoGameplayAssetsError(Exception):
@@ -58,10 +64,15 @@ def _save_last_used(filename: str) -> None:
     _STATE_FILE.write_text(json.dumps({"last_file": filename}), encoding="utf-8")
 
 
-def select_gameplay(cfg: Config, needed_duration: float) -> GameplayClip:
+def select_gameplay(cfg: Config, needed_duration: float, slot: int = 0) -> GameplayClip:
     """
-    Pick a random gameplay clip long enough for `needed_duration`,
-    avoiding the same file used in the previous run when possible.
+    Pick a gameplay clip long enough for `needed_duration`.
+
+    Each day the available clips are shuffled once (seeded by the date,
+    so the order changes daily). `slot` decides where in that shuffle to
+    start, so the 5 daily scheduled uploads use distinct clips with no
+    fixed repeating pattern. The previous run's file is also skipped when
+    possible, keeping local runs varied too.
     """
     gameplay_dir = Path(cfg.video.gameplay_dir)
     candidates = [p for p in gameplay_dir.glob("*") if p.suffix.lower() in _VIDEO_EXTENSIONS]
@@ -70,14 +81,20 @@ def select_gameplay(cfg: Config, needed_duration: float) -> GameplayClip:
             f"No video files found in {gameplay_dir}. Add gameplay clips there — see SETUP.md."
         )
 
-    if cfg.video.avoid_repeat_gameplay and len(candidates) > 1:
-        last_used = _load_last_used()
-        filtered = [p for p in candidates if p.name != last_used]
-        if filtered:
-            candidates = filtered
+    rng = random.Random(_day_seed())
+    order = list(candidates)
+    rng.shuffle(order)
 
-    random.shuffle(candidates)
-    for clip_path in candidates:
+    start = slot % len(order)
+    ordered = order[start:] + order[:start]
+
+    if cfg.video.avoid_repeat_gameplay and len(ordered) > 1:
+        last_used = _load_last_used()
+        filtered = [p for p in ordered if p.name != last_used]
+        if filtered:
+            ordered = filtered
+
+    for clip_path in ordered:
         try:
             duration = _probe_duration(clip_path)
         except (subprocess.CalledProcessError, ValueError) as exc:

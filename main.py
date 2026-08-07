@@ -11,9 +11,10 @@ For each of `count` Shorts (default 5 = one day's batch):
     7. upload   — the Short is published to YouTube
 
 Usage:
-    python main.py            # 5 Shorts, uploaded to YouTube
-    python main.py --test     # 5 Shorts rendered, upload skipped
-    python main.py --count 3  # 3 Shorts instead of the default
+    python main.py                # 1 Short, uploaded to YouTube (default batch)
+    python main.py --test         # 1 Short rendered, upload skipped
+    python main.py --count 3      # 3 Shorts instead of the default
+    python main.py --slot 2       # start from slot 2 of the day's clip shuffle
 """
 
 from __future__ import annotations
@@ -46,7 +47,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--count", type=int, default=None,
-        help="How many Shorts to make this run. Defaults to 5 (one day's batch).",
+        help="How many Shorts to make this run. Defaults to schedule.shorts_per_day.",
+    )
+    parser.add_argument(
+        "--slot", type=int, default=0,
+        help="Slot in the day's clip shuffle (0-6). Each scheduled run uses a "
+             "different slot so the day's uploads rotate through distinct videos.",
     )
     parser.add_argument(
         "--test", action="store_true",
@@ -63,6 +69,7 @@ def make_short(
     cfg: Config,
     output_dir: Path,
     test_mode: bool,
+    slot: int,
 ) -> None:
     """Make a single Short: story -> title -> voice -> caption -> cut -> render -> upload."""
     logger.info("=== Short %d/%d ===", index, total)
@@ -77,7 +84,7 @@ def make_short(
     tts_result = tts_provider.synthesize(story.text, out_path=str(narration_path))
     logger.info("Narration duration: %.1fs", tts_result.duration)
 
-    clip = select_gameplay(cfg, needed_duration=tts_result.duration)
+    clip = select_gameplay(cfg, needed_duration=tts_result.duration, slot=slot)
     music_path = select_music(cfg)
     logger.info("Video: %s (cut from %.1fs)  Music: %s", clip.path.name, clip.start_seconds, music_path)
 
@@ -121,7 +128,7 @@ def _load_dotenv(path: Path = Path(".env")) -> None:
         os.environ.setdefault(key, value)
 
 
-def run_pipeline(count: int, test_mode: bool) -> int:
+def run_pipeline(count: int, test_mode: bool, slot: int = 0) -> int:
     _load_dotenv()
 
     cfg = load_config()
@@ -137,7 +144,7 @@ def run_pipeline(count: int, test_mode: bool) -> int:
     made = 0
     for i in range(1, count + 1):
         try:
-            make_short(i, count, text_provider, tts_provider, cfg, output_dir, test_mode)
+            make_short(i, count, text_provider, tts_provider, cfg, output_dir, test_mode, slot)
             made += 1
         except (StoryQualityError, ProviderError, NoGameplayAssetsError,
                 RenderError, ValidationError) as exc:
@@ -149,7 +156,7 @@ def run_pipeline(count: int, test_mode: bool) -> int:
 
 def main() -> None:
     args = parse_args()
-    sys.exit(run_pipeline(count=args.count, test_mode=args.test))
+    sys.exit(run_pipeline(count=args.count, test_mode=args.test, slot=args.slot))
 
 
 if __name__ == "__main__":
