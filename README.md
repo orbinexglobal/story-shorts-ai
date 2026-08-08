@@ -4,9 +4,12 @@ An automation pipeline that takes a source video, cuts a segment,
 writes a first-person Reddit-style story over it, adds a title,
 word-synced captions and a narrated voice track, then renders and
 uploads the result as a YouTube Short. Each run makes **1 Short** and
-uploads it; GitHub Actions triggers the pipeline **5 times a day at
-different hours** (05:00 / 09:00 / 13:00 / 17:00 / 21:00 IST), so the
-day's uploads are spread out instead of going live at once.
+uploads it; GitHub Actions triggers the pipeline **12 times a day**,
+weighted toward Indian prime hours (7-11 PM IST is the strongest window
+for Indian gaming/entertainment Shorts). Evening sessions are spaced
+45-60 minutes apart so each Short gets its own algorithm test pool
+instead of being throttled by a same-hour batch dump. A final catch-up
+run tops the day up to the 10-video cap.
 
 ## Quick start
 
@@ -81,10 +84,11 @@ through `config.settings.load_config()`; nothing is hardcoded elsewhere.
 
 ## GitHub Actions
 
-`.github/workflows/pipeline.yml` runs the pipeline 5 times a day at
-different hours (cron `30 23/3/7/11/15 * * *`, UTC); each run makes and
-uploads exactly one Short, then stops. Set the repo secrets listed in
-the workflow for automated deployment.
+`.github/workflows/pipeline.yml` runs the pipeline 12 times a day
+(cron UTC, weighted toward Indian peak hours 7-11 PM IST); each run makes
+and uploads up to one Short, then stops once the 10/day cap is reached,
+with a final catch-up run to top up to exactly 10. Set the repo secrets
+listed in the workflow for automated deployment.
 
 ## Testing
 
