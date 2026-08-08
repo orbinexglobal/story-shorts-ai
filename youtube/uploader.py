@@ -44,34 +44,37 @@ def count_uploads_today(cfg: Config) -> int:
     """
     youtube = _build_client()
 
-    channels = youtube.channels().list(part="contentDetails", mine=True).execute()
     try:
+        channels = youtube.channels().list(part="contentDetails", mine=True).execute()
         uploads_playlist = channels["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
-    except (KeyError, IndexError) as exc:
-        raise ProviderError(f"Could not resolve uploads playlist: {channels}") from exc
+    except Exception as exc:  # noqa: BLE001 - refresh/auth errors must not crash the run
+        raise ProviderError(f"YouTube count failed: {exc}") from exc
 
     today = datetime.now(timezone.utc).date()
     count = 0
     page_token = None
-    while True:
-        response = youtube.playlistItems().list(
-            part="contentDetails",
-            playlistId=uploads_playlist,
-            maxResults=50,
-            pageToken=page_token,
-        ).execute()
-        for item in response.get("items", []):
-            published = item.get("contentDetails", {}).get("videoPublishedAt")
-            if not published:
-                continue
-            published_date = datetime.fromisoformat(published.replace("Z", "+00:00")).date()
-            if published_date == today:
-                count += 1
-            elif published_date < today:
-                return count  # playlist is newest-first; today's window is over
-        page_token = response.get("nextPageToken")
-        if not page_token:
-            break
+    try:
+        while True:
+            response = youtube.playlistItems().list(
+                part="contentDetails",
+                playlistId=uploads_playlist,
+                maxResults=50,
+                pageToken=page_token,
+            ).execute()
+            for item in response.get("items", []):
+                published = item.get("contentDetails", {}).get("videoPublishedAt")
+                if not published:
+                    continue
+                published_date = datetime.fromisoformat(published.replace("Z", "+00:00")).date()
+                if published_date == today:
+                    count += 1
+                elif published_date < today:
+                    return count  # playlist is newest-first; today's window is over
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+    except Exception as exc:  # noqa: BLE001
+        raise ProviderError(f"YouTube count failed: {exc}") from exc
     return count
 
 
