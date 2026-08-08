@@ -230,10 +230,19 @@ next.
    |---------------------------|-----------|
    | `GEMINI_API_KEY`           | 6         |
    | `OPENROUTER_API_KEY`       | 7         |
+   | `OPENROUTER_API_KEY_2`     | 7c       |
+   | `OPENROUTER_API_KEY_3`     | 7c       |
    | `GROQ_API_KEY`              | 7b        |
    | `YOUTUBE_CLIENT_ID`         | 8e        |
    | `YOUTUBE_CLIENT_SECRET`     | 8e        |
    | `YOUTUBE_REFRESH_TOKEN`     | 8e        |
+
+   > **Free-tier tip:** OpenRouter's free tier allows ~50 requests/day **per
+   > account**. Create a second free OpenRouter account and add its key as
+   > `OPENROUTER_API_KEY_2` (and a third as `OPENROUTER_API_KEY_3`) — the
+   > pipeline rotates accounts automatically, roughly doubling/tripling the
+   > daily budget. `OPENROUTER_API_KEY_2/3` are optional but strongly
+   > recommended for 10 uploads/day.
 
 ## 10. Test locally with real credentials
 

@@ -36,7 +36,8 @@ from video.music_selector import select_music
 from video.renderer import RenderError, render_video
 from video.subtitles import generate_ass
 from video.validator import ValidationError, validate_output
-from youtube.uploader import upload_video
+from utils.daily_count import read_daily_count, record_daily_count
+from youtube.uploader import count_uploads_today, upload_video
 
 logger = get_logger(__name__)
 
@@ -57,6 +58,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--test", action="store_true",
         help="Render the Shorts but skip the YouTube upload step.",
+    )
+    parser.add_argument(
+        "--target", type=int, default=None,
+        help="Stop once this many Shorts are live today (defaults to "
+             "schedule.daily_upload_target). Requires read scope on the "
+             "YouTube token; falls back to no cap if the count can't be read.",
     )
     return parser.parse_args(argv)
 
@@ -128,24 +135,37 @@ def _load_dotenv(path: Path = Path(".env")) -> None:
         os.environ.setdefault(key, value)
 
 
-def run_pipeline(count: int, test_mode: bool, slot: int = 0) -> int:
+def run_pipeline(count: int, test_mode: bool, slot: int = 0, target: int | None = None) -> int:
     _load_dotenv()
 
     cfg = load_config()
     configure_logging(cfg)
 
     count = count or cfg.schedule.shorts_per_day
+    target = target if target is not None else cfg.schedule.daily_upload_target
     output_dir = Path("output")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     text_provider = TextProviderChain(cfg)
     tts_provider = TTSProviderChain(cfg)
 
+    uploaded_today = 0
+    if not test_mode and target:
+        uploaded_today = _daily_uploaded_count(cfg, target)
+        logger.info("Already uploaded today: %d/%d", uploaded_today, target)
+
     made = 0
     for i in range(1, count + 1):
+        if target and uploaded_today + made >= target:
+            logger.info(
+                "Daily target reached (%d/%d); stopping this run.", uploaded_today + made, target
+            )
+            break
         try:
             make_short(i, count, text_provider, tts_provider, cfg, output_dir, test_mode, slot)
             made += 1
+            if not test_mode and target:
+                record_daily_count(uploaded_today + made)
         except (StoryQualityError, ProviderError, NoGameplayAssetsError,
                 RenderError, ValidationError) as exc:
             logger.error("Short %d failed: %s", i, exc)
@@ -154,9 +174,39 @@ def run_pipeline(count: int, test_mode: bool, slot: int = 0) -> int:
     return 0 if made > 0 else 1
 
 
+def _daily_uploaded_count(cfg: Config, target: int) -> int:
+    """
+    Return how many Shorts are live today, for enforcing the daily cap.
+
+    Prefers the YouTube Data API (accurate source of truth). If that fails
+    (e.g. upload-only token without read scope), falls back to the committed
+    state file so the cap still works instead of assuming 0 and overshooting.
+    Returns `target` (i.e. cap reached) if the count can't be determined at
+    all, so we never upload more than the daily target.
+    """
+    try:
+        count = count_uploads_today(cfg)
+        logger.info("Daily count from YouTube API: %d", count)
+        record_daily_count(count)
+        return count
+    except ProviderError as exc:
+        logger.warning(
+            "YouTube API count failed (%s); using state file fallback.", exc,
+        )
+    try:
+        count = read_daily_count()
+        logger.info("Daily count from state file: %d", count)
+        return count
+    except Exception as exc:  # noqa: BLE001 - cap must not be bypassable
+        logger.warning("State file unreadable (%s); assuming cap reached.", exc)
+        return target
+
+
 def main() -> None:
     args = parse_args()
-    sys.exit(run_pipeline(count=args.count, test_mode=args.test, slot=args.slot))
+    sys.exit(run_pipeline(
+        count=args.count, test_mode=args.test, slot=args.slot, target=args.target,
+    ))
 
 
 if __name__ == "__main__":

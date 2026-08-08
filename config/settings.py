@@ -28,9 +28,10 @@ DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
 @dataclass(frozen=True)
 class ScheduleConfig:
-    """How many Shorts to make per run (one day's batch)."""
+    """How many Shorts to make per run and the daily upload cap."""
 
     shorts_per_day: int
+    daily_upload_target: int
 
 
 @dataclass(frozen=True)
@@ -216,6 +217,7 @@ def load_config(path: Path | None = None) -> Config:
         environment=project.get("environment", "production"),
         schedule=ScheduleConfig(
             shorts_per_day=schedule["shorts_per_day"],
+            daily_upload_target=schedule.get("daily_upload_target", 10),
         ),
         story=StoryConfig(
             min_seconds=story["min_seconds"],

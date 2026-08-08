@@ -6,8 +6,11 @@ Write a YouTube description for this video.
 
 Rules:
 - Natural English, very short (1-2 sentences summarizing the story).
-- Include 3-5 relevant hashtags.
-- Nothing more (no links, no calls to action, no extra commentary).
+- End the description with one short open question to the viewer that invites
+  comments (e.g. "What would you have done?").
+- Add one soft subscribe line: "Follow TinyPop TV for a new story every day."
+- Include 3-5 relevant hashtags, and always include #TinyPopTV first.
+- Nothing more (no links, no extra commentary).
 
 Respond with ONLY a single JSON object (no markdown fences, no extra text) in exactly this shape:
 {{"description": "<1-2 sentence summary>", "hashtags": ["#tag1", "#tag2", "#tag3"]}}

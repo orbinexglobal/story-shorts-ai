@@ -14,7 +14,10 @@ import os
 
 from providers.base import ProviderError
 
-_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+_SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+]
 _TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 

@@ -6,9 +6,12 @@ Write 5 candidate titles for this video, in the style of viral storytime Shorts.
 
 Rules:
 - 25-55 characters each.
-- Short, curiosity-driven hook titles, no fake clickbait.
-- Examples of the style: "My Mom Had One Rule", "I Never Opened That Door Again", "The Last Text Changed Everything".
-- No emojis, no ALL CAPS.
+- Curiosity-gap titles that hint at a mystery WITHOUT spoiling the twist.
+- Prefer the proven pattern: "The [Object] That [Something Happened]" —
+  e.g. "The Polaroid That Predicted My Future", "The Tiny Green Padlock That
+  Locked Me Down", "The Basement Door That Used My Key".
+- No emojis, no ALL CAPS, no fake clickbait.
+- Of the 5, make at least 3 follow the "The [Object] That [Event]" pattern.
 
 Respond with ONLY a single JSON object (no markdown fences, no extra text) in exactly this shape:
 {{"titles": ["title 1", "title 2", "title 3", "title 4", "title 5"]}}

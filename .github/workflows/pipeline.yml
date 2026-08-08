@@ -2,19 +2,30 @@ name: StoryShorts AI Pipeline
 
 on:
   schedule:
-    # One Short per run, 5 runs/day, each at a different hour.
-    # Times below are UTC; in IST they are 05:00 / 09:00 / 13:00 / 17:00 / 21:00.
-    - cron: "30 23 * * *"   # 05:00 IST
-    - cron: "30 3 * * *"    # 09:00 IST
-    - cron: "30 7 * * *"    # 13:00 IST
-    - cron: "30 11 * * *"   # 17:00 IST
-    - cron: "30 15 * * *"   # 21:00 IST
+    # ~12 sessions/day (every 2h, UTC). Each run uploads up to 1 Short and
+    # stops as soon as today's daily target (10) is reached across all runs,
+    # so total daily attempts ≈ 12 to guarantee ~10 uploads.
+    # Times below are UTC; add 5:30 for IST.
+    - cron: "15 0 * * *"
+    - cron: "15 2 * * *"
+    - cron: "15 4 * * *"
+    - cron: "15 6 * * *"
+    - cron: "15 8 * * *"
+    - cron: "15 10 * * *"
+    - cron: "15 12 * * *"
+    - cron: "15 14 * * *"
+    - cron: "15 16 * * *"
+    - cron: "15 18 * * *"
+    - cron: "15 20 * * *"
+    - cron: "15 22 * * *"
   workflow_dispatch: {}   # allows manually triggering a run from the Actions tab
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
+    permissions:
+      contents: write   # to persist state/daily_upload_count.json between runs
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,11 +42,15 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      # Each run uploads exactly ONE Short, then stops. The slot is derived
-      # from the current UTC hour so the day's 5 uploads use distinct clips.
-      - name: Run pipeline (1 short)
+      # Each run uploads up to ONE Short, then checks today's total via the
+      # YouTube Data API (falling back to the committed state file) and stops
+      # once 10 are live. The final run of the day uses a bigger count as a
+      # catch-up: the --target 10 cap guarantees it never exceeds 10 total.
+      - name: Run pipeline (1 short, cap at 10/day)
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY_2: ${{ secrets.OPENROUTER_API_KEY_2 }}
+          OPENROUTER_API_KEY_3: ${{ secrets.OPENROUTER_API_KEY_3 }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
@@ -43,13 +58,21 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
           HOUR=$(date -u +%H)
-          case $HOUR in
-            23) SLOT=0 ;;
-            3)  SLOT=1 ;;
-            7)  SLOT=2 ;;
-            11) SLOT=3 ;;
-            15) SLOT=4 ;;
-            *)  SLOT=$((10#$HOUR % 7)) ;;
-          esac
-          echo "UTC hour $HOUR -> slot $SLOT"
-          python main.py --count 1 --slot "$SLOT"
+          SLOT=$((10#$HOUR / 2 % 7))
+          # 22:xx UTC is the last session of the day: top up to the target.
+          if [ "$HOUR" = "22" ]; then
+            COUNT=10
+          else
+            COUNT=1
+          fi
+          echo "UTC hour $HOUR -> slot $SLOT, count $COUNT"
+          python main.py --count "$COUNT" --target 10 --slot "$SLOT"
+
+      - name: Persist daily count between runs
+        run: |
+          git config user.name "StoryShorts AI"
+          git config user.email "storyshorts@users.noreply.github.com"
+          git add state/daily_upload_count.json
+          git diff --cached --quiet || git commit -m "Update daily upload count"
+          git push
+

@@ -8,16 +8,17 @@ project:
   environment: "production"   # "production" or "test"
 
 schedule:
-  # One Short per run. The GitHub Actions workflow triggers 5 times a
-  # day at different hours; each run uploads exactly one Short and stops.
+  # The GitHub Actions workflow triggers ~12 times a day; each run uploads up
+  # to `shorts_per_day` Shorts and stops once the daily target is reached.
   shorts_per_day: 1          # how many Shorts to make per run
+  daily_upload_target: 10    # stop uploading once this many Shorts are live today
 
 story:
   min_seconds: 20
   max_seconds: 30
   language: "en"
   tone: "reddit_storytime"
-  candidates_per_run: 1        # generate 1 story, score it, keep it (fast)
+  candidates_per_run: 2        # generate 2 stories, score them, keep the best (quality beats luck)
   min_acceptable_score: 7.0    # out of 10; below this, discard and retry
 
 ai_providers:

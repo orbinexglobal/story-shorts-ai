@@ -35,7 +35,10 @@ def main() -> None:
         )
         sys.exit(1)
 
-    scopes = ["https://www.googleapis.com/auth/youtube.upload"]
+    scopes = [
+        "https://www.googleapis.com/auth/youtube.upload",
+        "https://www.googleapis.com/auth/youtube.readonly",
+    ]
     flow = InstalledAppFlow.from_client_secrets_file(args.client_secrets, scopes)
     credentials = flow.run_local_server(port=0)
 

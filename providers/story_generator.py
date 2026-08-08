@@ -30,6 +30,28 @@ _SCORE_FIELDS = (
 )
 _MAX_ATTEMPTS = 3
 
+# Not all dimensions drive Shorts distribution equally. Hook, curiosity,
+# retention, and ending are the ones that stop swipes, hold viewership, and
+# trigger the algorithm; flow/simplicity are supporting. We weight the
+# overall score toward the viral dimensions and require a per-dimension
+# floor on the two most critical ones, so a story with a weak hook can never
+# pass just because the average looks fine.
+_VIRAL_WEIGHTS = {
+    "hook_score": 3,
+    "curiosity_score": 2,
+    "retention_score": 3,
+    "ending_score": 2,
+    "emotional_flow_score": 1,
+    "simplicity_score": 1,
+}
+# A story with either of these below the floor is not publishable: a cold
+# opening or a dead ending guarantees swipe-away in the Shorts feed.
+_VIRAL_FLOORS = {
+    "hook_score": 7.0,
+    "ending_score": 7.0,
+    "retention_score": 7.0,
+}
+
 # Non-Latin scripts (CJK, Cyrillic, Arabic, etc.) occasionally leak into
 # free-model output as tokenizer garbage. The narration must be clean,
 # readable English, so such stories are rejected and regenerated.
@@ -241,7 +263,16 @@ class StoryCandidate:
 
     @property
     def overall_score(self) -> float:
-        return sum(self.scores.values()) / len(self.scores)
+        """Weighted score favoring the dimensions that drive Shorts virality."""
+        total_weight = sum(_VIRAL_WEIGHTS.values())
+        return (
+            sum(self.scores.get(field, 0.0) * _VIRAL_WEIGHTS[field] for field in _SCORE_FIELDS)
+            / total_weight
+        )
+
+    def passes_viral_floors(self) -> bool:
+        """A weak hook, flat ending, or low retention is a hard reject."""
+        return all(self.scores.get(field, 0.0) >= floor for field, floor in _VIRAL_FLOORS.items())
 
 
 def _build_prompt(cfg: Config) -> str:
@@ -306,6 +337,13 @@ def generate_story(text_provider: TextProvider, cfg: Config) -> StoryCandidate:
             continue
 
         best = max(candidates, key=lambda c: c.overall_score)
+        if not best.passes_viral_floors():
+            logger.warning(
+                "Attempt %d/%d: best candidate fails viral floors "
+                "(hook/ending/retention must be >=7.0); retrying",
+                round_no, _MAX_ATTEMPTS,
+            )
+            continue
         if best.overall_score < cfg.story.min_acceptable_score:
             logger.warning(
                 "Attempt %d/%d: best candidate scored %.1f (below %.1f); retrying",
