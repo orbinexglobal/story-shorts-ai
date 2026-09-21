@@ -29,8 +29,8 @@ def _cfg(tmp_path, enabled=True, parts=3, state=None, name="saga_state.json"):
     return replace(cfg, story=story), state_path
 
 
-def test_fresh_state_when_file_missing():
-    assert load_saga().part_number == 1
+def test_fresh_state_when_file_missing(tmp_path):
+    assert load_saga(tmp_path / "missing.json").part_number == 1
 
 
 def test_advance_persists_and_increments(tmp_path):

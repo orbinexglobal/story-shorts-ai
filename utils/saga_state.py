@@ -129,6 +129,10 @@ def build_saga_context(cfg: Config, path: Path | None = None) -> str:
     prompt = (
         f"This is part {ctx.part_number} of an ongoing story. "
         f"Next up: part {ctx.part_number + 1}{total_line}.\n"
+        "FIRST SENTENCE trick: hook a stranger who has never seen earlier parts. "
+        "Open with one self-contained unsettling image (an exact time, object, "
+        "sound — needs NO backstory), e.g. \"By the second night the door was "
+        "humming again.\" Only then continue the plot.\n"
         "STORY SO FAR — continue THIS EXACT plot, do not restart it:\n"
         f'"{ctx.last_story[:500]}"\n'
         "Continue the exact same plot, same first-person narrator, same "
