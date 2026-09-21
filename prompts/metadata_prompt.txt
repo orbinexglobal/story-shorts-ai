@@ -1,0 +1,28 @@
+Here is a short first-person story that will be posted as a YouTube Short:
+
+"{story}"
+
+Write the metadata for this video in ONE JSON object: 5 candidate titles, a
+short description, and hashtags.
+
+TITLE rules:
+- 25-55 characters each.
+- Curiosity-gap titles that hint at a mystery WITHOUT spoiling the twist.
+- Prefer the proven pattern: "The [Object] That [Something Happened]" —
+  e.g. "The Polaroid That Predicted My Future", "The Tiny Green Padlock That
+  Locked Me Down", "The Basement Door That Used My Key".
+- No emojis, no ALL CAPS, no fake clickbait.
+- Of the 5, make at least 3 follow the "The [Object] That [Event]" pattern.
+
+DESCRIPTION rules:
+- Natural English, very short (1-2 sentences summarizing the story).
+- End the description with one short open question to the viewer that invites
+  comments (e.g. "What would you have done?").
+- Add one soft subscribe line: "Follow TinyPop TV for a new story every day."
+- Nothing more (no links, no extra commentary).
+
+HASHTAG rules:
+- 3-5 relevant hashtags, always starting with #TinyPopTV.
+
+Respond with ONLY a single JSON object (no markdown fences, no extra text) in exactly this shape:
+{{"titles": ["title 1", "title 2", "title 3", "title 4", "title 5"], "description": "<1-2 sentence summary>", "hashtags": ["#TinyPopTV", "#tag2", "#tag3"]}}

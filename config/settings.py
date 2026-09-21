@@ -54,6 +54,16 @@ class ProviderModelConfig:
 
 
 @dataclass(frozen=True)
+class OpenRouterConfig:
+    """Model preferences and live-list discovery for OpenRouter."""
+
+    preferred_models: list[str]
+    fallback_models: list[str] = field(default_factory=list)
+    auto_discover: bool = True             # re-check /api/v1/models at startup
+    discovery_timeout_seconds: int = 5     # timeout for that discovery call
+
+
+@dataclass(frozen=True)
 class AIProvidersConfig:
     """Fallback order and per-provider model preferences."""
 
@@ -61,7 +71,7 @@ class AIProvidersConfig:
     max_retries_per_provider: int
     retry_backoff_seconds: int
     gemini: ProviderModelConfig
-    openrouter: ProviderModelConfig
+    openrouter: OpenRouterConfig
     groq: ProviderModelConfig
 
 
@@ -232,7 +242,12 @@ def load_config(path: Path | None = None) -> Config:
             max_retries_per_provider=providers["max_retries_per_provider"],
             retry_backoff_seconds=providers["retry_backoff_seconds"],
             gemini=ProviderModelConfig(providers["gemini"]["preferred_models"]),
-            openrouter=ProviderModelConfig(providers["openrouter"]["preferred_models"]),
+            openrouter=OpenRouterConfig(
+                preferred_models=providers["openrouter"]["preferred_models"],
+                fallback_models=providers["openrouter"].get("fallback_models", []),
+                auto_discover=providers["openrouter"].get("auto_discover", True),
+                discovery_timeout_seconds=providers["openrouter"].get("discovery_timeout_seconds", 5),
+            ),
             groq=ProviderModelConfig(providers["groq"]["preferred_models"]),
         ),
         tts=TTSConfig(

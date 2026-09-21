@@ -219,6 +219,36 @@ YOUTUBE_REFRESH_TOKEN=...
 Copy all three somewhere safe — you'll paste them into GitHub Secrets
 next.
 
+### 8f. Publish the OAuth app (one-time — stops the 7-day token expiry)
+
+While the consent screen is in **Testing** mode, Google expires refresh
+tokens after **7 days**, so you'd have to regenerate the token constantly.
+Publish the app **once** to make tokens long-lived:
+
+1. Turn on GitHub Pages for this repository (Settings → Pages →
+   Source: *Deploy from a branch* → branch `main`, folder `/docs`). The
+   bundled `docs/` folder becomes your consent-screen home page at
+   `https://<your-user>.github.io/story-shorts-ai/`.
+2. Go to https://console.cloud.google.com/apis/credentials/consent and, on
+   the Branding page, fill in the fields that unlock publishing:
+   - **Application home page**: your GitHub Pages URL from step 1.
+   - **Privacy policy link**: `.../story-shorts-ai/privacy.html`.
+   - **Terms of Service link**: `.../story-shorts-ai/terms.html`.
+   - **Authorised domains**: add `<your-user>.github.io`.
+   - **Developer contact**: your email (already set).
+3. Save, then click **Publish app**. Google may flag the app as
+   "Unverified" because `youtube.upload` is a sensitive scope — that only
+   shows a warning at login and caps the app at 100 users, which is fine
+   for a personal channel. Click through the warning when you next sign in.
+4. Regenerate the refresh token one last time (repeat step 8e) and update
+   the `YOUTUBE_REFRESH_TOKEN` secret — after publishing, tokens no longer
+   expire, so you never do this again.
+
+> If you have a Google Workspace account, an even simpler option is to set
+> the consent screen **User type** to *Internal* — internal apps skip
+> publication, verification, and the domain requirement entirely, and their
+> refresh tokens never expire either.
+
 ## 9. Add everything as GitHub Secrets
 
 1. In your GitHub repo, go to Settings → Secrets and variables →
@@ -349,10 +379,11 @@ Rare, usually a transient Ubuntu package mirror issue — click
 
 **YouTube upload fails with an auth error even though secrets are set**
 Refresh tokens can be invalidated if you change your Google account
-password, revoke app access, or don't use the app for 6 months (for
-apps still in "Testing" mode on the OAuth consent screen). Re-run step
-8e to generate a new refresh token and update the
-`YOUTUBE_REFRESH_TOKEN` secret.
+password, revoke app access, or — the usual culprit — the OAuth consent
+screen is still in **Testing** mode, where Google expires tokens after
+7 days. Publish the app once per step 8f; that removes the recurring
+expiry. If the token is already dead, re-run step 8e to generate a new
+refresh token and update the `YOUTUBE_REFRESH_TOKEN` secret.
 
 **Videos are being rejected / flagged as reused or low-value by YouTube**
 This is a content-quality problem, not a bug — see `docs/PHASES.md`

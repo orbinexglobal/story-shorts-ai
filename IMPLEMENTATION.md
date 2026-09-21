@@ -1,40 +1,38 @@
-# Implementation — 10 Shorts/day, guaranteed
+# Implementation — consistency + retention first (1-2 Shorts/day)
 
 ## Goal
 
-The channel must upload **10 YouTube Shorts every day, no matter what**. To
-survive failures (rate limits, provider outages, render hiccups) we run
-**12 attempts** per day and expect at least **10 uploads**; if more attempts
-fail than expected, the pipeline keeps trying until the day's 10 uploads are
-made (bounded by a safety cap). Uploads stop as soon as the daily total
-reaches 10.
+The channel uploads **1-2 YouTube Shorts every day, no matter what**, and
+every Short is engineered for high retention. This is a deliberate reversal
+of the earlier "10 Shorts/day lottery-ticket" plan: the Sep 2026 analytics
+export (`analytics/2026-09-21-export/`) showed that bumping ~10/day drained
+the algorithm's test pools — the only videos that ever got reach were the 3
+launched *before* the flood, and every Short in the flood got 1-300 views.
 
-Sessions should finish in roughly **5 minutes each** (approximate, not a hard
-limit).
-
-The strategic goal behind the volume is **10M views in 90 days**. That is a
-viral-outcome goal, not a production guarantee: we maximize the chance of it
-by (a) never missing a day, (b) maximizing retention per Short, and
-(c) running enough daily volume that a breakout hit is statistically likely.
+The strategic goal is **long-term audience growth**. We maximise the chance of
+it by (a) never missing a day, (b) maximizing retention % per Short (14-20s
+runtimes so ~10s of watch time reads as 60-70% instead of ~40%), and
+(c) keeping cadence low enough that every upload gets a fair test pool.
 
 ## Current behaviour
 
-- `.github/workflows/pipeline.yml` triggers 5×/day, each run makes **1 short**
-  (`--count 1`), so a bad day can drop the channel to 4-5 uploads or fewer.
-- The OpenRouter provider **gave up on the first HTTP 429** and never tried
-  the other four free models, so a single rate-limited model killed the run
-  (`All text providers failed ... rate limit (HTTP 429)`).
-- No daily cap logic exists: nothing knows how many shorts were already
-  uploaded today.
+- `.github/workflows/pipeline.yml` triggers 12×/day, each run makes **1 short**
+  (`--count 1`), and the first 1-2 sessions that succeed each day do the
+  upload; the rest exit early once the daily target of **2** is reached.
+- The OpenRouter provider discovers live free models at startup, rotates
+  across multiple API keys, and sinks dead/rate-limited models with process
+  -wide cooldowns — a single model or key failure can't kill a run.
+- Metadata (title + description + hashtags) is generated in one API call.
+- `main.py --target 2` checks today's upload count via the YouTube Data API
+  before each short and stops when the cap is reached.
 
 ## Design
 
 | Rule | Mechanism |
 |---|---|
-| 10 uploads/day guaranteed | Workflow runs the pipeline repeatedly through the day; each session uploads up to the daily target minus what's already live |
-| Run 12 to upload 10 | 12 attempts/day across sessions; failures are absorbed and later sessions top up the count |
-| Stop at 10 | `main.py --target 10` checks today's upload count via the YouTube Data API before each short and stops when the cap is reached |
-| ~5 min sessions | Keep `--count` small per session (e.g. 1-2 shorts), run sessions several times a day instead of one giant batch |
+| 1-2 uploads/day guaranteed | Workflow runs 12 sessions spread across the day; each session uploads up to the daily target minus what's already live |
+| Low cadence, spaced | `main.py --target 2` caps each day at 2; sessions are 45-60 min apart so a flood never happens |
+| ~5 min sessions | Keep `--count` small per session (1 short), run sessions several times a day instead of one giant batch |
 
 ## Changes
 
@@ -49,8 +47,8 @@ by (a) never missing a day, (b) maximizing retention per Short, and
 
 ### 2. Daily upload cap (`config/config.yaml`, `config/settings.py`, `main.py`)
 
-- New config key: `schedule.daily_upload_target: 10`.
-- New CLI flag: `python main.py --target 10`.
+- New config key: `schedule.daily_upload_target: 2`.
+- New CLI flag: `python main.py --target 2`.
 - `run_pipeline` queries today's live upload count (via YouTube Data API) and
   stops making shorts as soon as `uploaded_today + made >= target`.
 - Exit code stays `1` only if zero shorts succeeded; reaching the cap is a
@@ -70,14 +68,17 @@ by (a) never missing a day, (b) maximizing retention per Short, and
 ### 4. Workflow schedule (`.github/workflows/pipeline.yml`)
 
 - Cron fires 12×/day so total attempts ≈ 12 (see crons below).
-- Each session runs `python main.py --count 1 --target 10 --slot $SLOT`
+- Each session runs `python main.py --count 1 --target 2 --slot $SLOT`
   (small count keeps sessions ~5 min; the daily target is shared state via
-  YouTube).
+  YouTube); only the first 1-2 sessions that succeed each day actually upload.
 - `timeout-minutes` kept large enough to absorb retries/backoff.
 
 ### 5. Config tuning (`config/config.yaml`)
 
-- `schedule.daily_upload_target: 10`.
+- `schedule.daily_upload_target: 2` — deliberately low (cadence, not volume,
+  is what earns reach; see the Sep 2026 export analysis).
+- `story.min_seconds: 14`, `story.max_seconds: 20` — the retention window. A
+  ~16s narration at ~60-70% retention outperforms a 28s one at ~43%.
 - `retry.backoff_seconds` and `rate_limits.rate_limit_backoff_seconds` keep
   the chain resilient to transient 429s, and all 5 OpenRouter free models stay
   in `preferred_models`.
@@ -92,7 +93,7 @@ free accounts multiplies the daily budget:
 - `providers/openrouter_provider.py` now reads `OPENROUTER_API_KEY`,
   `OPENROUTER_API_KEY_2` ... `_5` and tries each key (then each model) in
   order. 2 accounts = 100 req/day, 3 = 150/day, etc.
-- One account is still ~50/day — tight for 10 uploads (needs ~30-70). Two
+- One account is still ~50/day — tight for heavy days; two
   accounts gives comfortable headroom without spending anything.
 - `.env.example` and `pipeline.yml` document/pass `OPENROUTER_API_KEY_2/3`
   as GitHub Secrets.
@@ -113,17 +114,20 @@ score** and **per-dimension floors**:
 
 ### 6. Viral-content prompts (`prompts/`)
 
-- `story_prompt.txt`: force a **hook in the first sentence**, add a new
-  escalation every 2-3s, end on a twist + an open question that invites
-  comments ("What would you have done?"), and bias length toward **20-30s**
-  (the winning window in the data; the 50s video flopped). Adds a single soft
-  **subscribe CTA** ("Follow TinyPop TV for more stories like this.") only at
-  the very end, after the twist, so it converts subs without hurting retention.
-- `title_prompt.txt`: push curiosity-gap titles in the proven pattern
-  `"The [Object] That [Something Happened]"`, never spoil the twist.
-- `description_prompt.txt`: add a one-line comment prompt ("What would you
-  do?"), a soft subscribe line, and the `#TinyPopTV` brand hashtag — comments
-  and subs are both algorithm and retention signals.
+- `story_prompt.txt`: force a **hook in the first 2 seconds** (first sentence
+  carries the strangest image), a new escalation every 2-3s, ~55-65 spoken
+  words, a **re-read twist ending** (engineered to trigger replays) + an open
+  question that invites comments ("What would you have done?"), all inside a
+  **14-20s retention window** (a sub-20s Short at ~60-70% retention scales;
+  a 28s Short at ~43% caps out ~1.5-2k). Adds a single soft **subscribe CTA**
+  ("Follow TinyPop TV for more stories like this.") only at the very end,
+  after the twist, so it converts subs without hurting retention.
+- `metadata_prompt.txt`: one call that yields 5 curiosity-gap titles in the
+  proven pattern `"The [Object] That [Something Happened]"` (never spoiling
+  the twist), a one-line comment prompt ("What would you do?"), a soft
+  subscribe line, and the `#TinyPopTV` brand hashtag — comments and subs are
+  both algorithm and retention signals. Title length and ALL-CAPS rules are
+  enforced in code (`_pick_best_title`), not left to the model.
 
 ## Subscriber-conversion fix (0.021% → target 0.5-1.5%)
 
@@ -187,69 +191,75 @@ The chain also falls back to Groq/Gemini if both are exhausted.
 
 ---
 
-# Viral-growth strategy (10M views in 90 days)
+# Viral-growth strategy
 
-## Where the channel stands (data: 2026-07-11 → 2026-08-08)
+## Where the channel stands (data: 2025-09-21 → 2026-09-21, full year)
 
+See `analytics/2026-09-21-export/`. The year totals:
 | Metric | Value |
 |---|---|
-| Total views (all content) | 4,747 |
-| Engaged views | 1,487 |
-| Avg % viewed (storytime) | 40-45% |
-| Avg view duration | 11-13s |
-| Subscribers gained | 1 |
-| Best day | 2026-08-07 (1,482 engaged views) |
+| Total views | 10,543 (6 gameplay 2024, 79 story Shorts Aug 2026) |
+| Avg % viewed (winners) | ~40-45% |
+| Avg view duration | 10-11s |
+| Subscribers gained | +5 (−0); channel at 3 |
+| Videos > 1,000 views | 3 (max 1,795) |
+| Unique reach | 7,993 |
 
-**What the winners (1400-1700 views each) have in common:**
+**What the winners (1.4-1.8k views each) have in common:**
 
-- **Duration 24-29s** — short enough to hold retention. The 50s video got 1 view.
+- **Launched on day one (Aug 7), before the daily dump started.** They got a
+  real test pool; everything uploaded afterwards got 1-300 views.
 - **Title = curiosity gap, no spoiler:**
-  - "The Polaroid That Predicted My Future" (535 engaged)
-  - "The Tiny Green Padlock That Locked Me Down" (506 engaged)
-  - "The Basement Door That Used My Key" (440 engaged)
-- **First-person supernatural/horror** hook, escalating mystery, twist ending.
-- **Published in the same batch** (Aug 7) — the algorithm tested and promoted them.
+  - "The Polaroid That Predicted My Future" (1,394)
+  - "The Tiny Green Padlock That Locked Me Down" (1,739)
+  - "The Basement Door That Used My Key" (1,795)
+- First-person supernatural/mystery hook, escalating tension, twist ending.
+- Avg % viewed ~40-45% — good enough to win a test pool, too low to escape it.
 
-**What the flops (1-2 views) share:**
+**Two findings that reshaped the strategy:**
 
-- Same niche but weaker titles ("I Ignored Dad's Warning, Found a Door Inside"),
-  longer runtime (50s), or released after the batch's distribution window.
+1. **The 10/day dump throttled the channel.** ~79 Shorts were pushed in ~10
+   days. YouTube gives each Short a small test pool on publish; when 10 land
+   the same day they cannibalise each other and none can surface. The correct
+   play is *fewer, spaced* uploads so every Short gets a fair test.
+2. **Retention ~40% caps a Short at ~1.5-2k.** Shorts distribution scales on
+   **avg % viewed** and **swipe-away rate**; the escape threshold is roughly
+   **65%+**. At ~40%, even the promoted winners ran out of reach at ~1.7k.
+3. **Subscribers can't grow without reach or recurrence.** The upload stream
+   stopped mid-Aug (run failures); reach was a one-week spike, so there was no
+   returning-audience loop and basically zero subscriber conversion.
 
-## The math on 10M / 90 days
+## The path (retention → consistency → eventual virality)
 
-At the current steady-state rate (~1,500 engaged views/day on a good day,
-zero on bad days), a purely linear ramp gets nowhere near 10M. 10M in 90 days
-needs an average of **~111,000 views/day**. That only happens via **short-form
-virality**: a handful of Shorts that each pick up 1-5M views, plus a steady
-baseline from the daily 10.
+1. **Keep driving retention %.** 14-20s runtimes so ~10s of watch time reads
+   as 60-70% instead of ~40%; hook inside the first 2 seconds; escalation
+   every 2-3s; re-read twist endings that trigger replays.
+2. **Never miss a day, keep the cap at 2.** Consistency teaches the algorithm
+   who the channel's audience is. Raising the cap back to 10 just revives the
+   dump problem.
+3. **Crosspost the finished Short** to Instagram Reels / TikTok / Facebook
+   (nothing in this repo does that yet — it's the fastest way to pull a
+   partial audience over, and the sync shortcut is: seed the titles off the
+   same `output/` folder).
+4. **Iterate monthly on data.** The next export (≈ late Oct) should show avg %
+   viewed climbing from ~43% toward 60-70%, a growing median views/Short, and
+   subscribers starting to tick between view spikes.
 
-The realistic path is a **retention + volume + iteration loop**:
+## What this repo changes
 
-1. **Never miss a day, never cap at 1.** 10 Shorts/day = ~900 in 90 days.
-   Each Short is a lottery ticket; volume is the only guaranteed multiplier.
-2. **Fix retention first.** YouTube Shorts ranks on **avg % viewed** and
-   **swipe-away rate**. Today the channel is at ~43% viewed. Winners in this
-   niche sit at 65-85%. Every point of retention compounds reach.
-3. **Double down on the winning formula.** 24-30s, object-based curiosity
-   title, first-person eerie escalation, twist + comment-prompting ending.
-4. **Feed the algorithm engagement signals.** Comments (end with a question),
-   shares (shock/twist endings), loops (end that visually suggests the start).
-5. **Iterate weekly on data.** Compare % viewed and CTR per title pattern;
-   keep the patterns that lift retention, drop those that don't.
-
-## What this repo changes to chase it
-
-- **Prompts** now enforce the winning runtime + hook + comment-prompt.
-- **Volume**: 10/day regardless of single-run failures (target + retries).
-- **Consistency**: slots keep daily clips distinct; sessions spread across the
-  day so a flop batch can't kill a whole day.
+- **Retention window**: 14-20s (`story.min_seconds: 14`, `max_seconds: 20`);
+  prompt enforces hook-by-second-2, ~55-65 words, replay-loop endings.
+- **Cadence**: 2/day cap (`schedule.daily_upload_target: 2`, workflow
+  `--target 2`); sessions stay spaced so uploads never arrive in a batch.
+- **Reliability**: OpenRouter rotation + dead-model discovery, published OAuth
+  app → the daily beat finally runs every day.
 - Everything else (the actual viral outcome) is decided by viewer retention —
   which is now the thing the pipeline optimizes for.
 
 ## Realistic expectation
 
-10M/90d is a stretch goal. The engineering guarantees the **volume and
-quality floor** (10 fresh, high-retention-formatted Shorts every day). The
-algorithm does the rest. A single 2M-view hit in a 900-video runway is far
-more likely than it sounds when retention and daily volume are both correct —
-but no pipeline can *promise* a specific view count.
+Retention fixes compound: from ~43% to ~60-70%, most Shorts should start
+clearing the first test pool (a few hundred → few thousand views) instead of
+capping at ~1.7k, and subscriber conversion should move from ~0.02% toward the
+industry 0.5-1.5%. A breakout hit is possible but not guaranteed — no pipeline
+can *promise* a specific view count.

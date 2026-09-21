@@ -5,6 +5,9 @@ client_secret*.json
 token.json
 credentials.json
 
+# Large analytics exports (keep the extracted CSVs in analytics/, not the zips)
+Content *.zip
+
 # Runtime artifacts
 temp/*
 !temp/.gitkeep

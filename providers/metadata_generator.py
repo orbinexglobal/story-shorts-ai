@@ -1,9 +1,10 @@
 """
 Video metadata generation: title, description, hashtags.
 
-Both prompts ask the model for several candidates and this module
-enforces the hard rules from the spec (title length, no ALL CAPS) in
-code rather than trusting the model to always comply.
+The prompt asks the model for 5 title candidates plus a description and
+hashtags, and this module returns the best title candidate while enforcing
+the hard rules from the spec (title length, no ALL CAPS) in code rather
+than trusting the model to always comply.
 """
 
 from __future__ import annotations
@@ -17,11 +18,14 @@ from utils.json_extract import JsonExtractionError, extract_json
 
 logger = get_logger(__name__)
 
-_TITLE_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "title_prompt.txt"
-_DESC_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "description_prompt.txt"
+_METADATA_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "metadata_prompt.txt"
 
 _MIN_TITLE_LEN = 25
 _MAX_TITLE_LEN = 55
+
+_DEFAULT_DESCRIPTION_SUFFIX = (
+    "What would you have done? Follow TinyPop TV for a new story every day."
+)
 
 
 @dataclass(frozen=True)
@@ -47,25 +51,29 @@ def _pick_best_title(titles: list[str], fallback_story: str) -> str:
 
 
 def generate_metadata(text_provider: TextProvider, story: str) -> VideoMetadata:
-    """Generate a title, description, and hashtags for the given story."""
-    title_prompt = _TITLE_PROMPT_PATH.read_text(encoding="utf-8").format(story=story)
-    desc_prompt = _DESC_PROMPT_PATH.read_text(encoding="utf-8").format(story=story)
+    """
+    Generate a title, description, and hashtags for the given story.
+
+    A single provider call produces all three, so a Short's metadata costs
+    one API request instead of two.
+    """
+    prompt = _METADATA_PROMPT_PATH.read_text(encoding="utf-8").format(story=story)
 
     try:
-        title_data = extract_json(text_provider.generate(title_prompt, max_tokens=2048))
-        titles = [str(t) for t in title_data.get("titles", [])]
+        data = extract_json(text_provider.generate(prompt, max_tokens=2048))
+        titles = [str(t) for t in data.get("titles", [])]
     except JsonExtractionError as exc:
         logger.warning("Falling back to a generic title: %s", exc)
+        data = {}
         titles = []
     title = _pick_best_title(titles, story)
 
-    try:
-        desc_data = extract_json(text_provider.generate(desc_prompt, max_tokens=2048))
-        description = str(desc_data.get("description", story[:150]))
-        hashtags = [str(h) for h in desc_data.get("hashtags", ["#shorts"])]
-    except JsonExtractionError as exc:
-        logger.warning("Falling back to a generic description: %s", exc)
-        description = story[:150]
-        hashtags = ["#shorts", "#storytime"]
+    description = str(data.get("description", "")).strip()
+    if not description:
+        description = f"{story[:150]}. {_DEFAULT_DESCRIPTION_SUFFIX}"
+
+    hashtags = [str(h) for h in data.get("hashtags", [])]
+    if not hashtags:
+        hashtags = ["#TinyPopTV", "#storytime"]
 
     return VideoMetadata(title=title, description=description, hashtags=hashtags)

@@ -10,12 +10,20 @@ project:
 schedule:
   # The GitHub Actions workflow triggers ~12 times a day; each run uploads up
   # to `shorts_per_day` Shorts and stops once the daily target is reached.
+  # 1-2 spaced uploads/day is deliberate: the Aug 2026 analytics export proved
+  # that ~10/day dumps throttle the algorithm (each Short in a flood gets a
+  # tiny test pool), while a couple of spread-out Shorts per day keep every
+  # upload in the feed's rotation.
   shorts_per_day: 1          # how many Shorts to make per run
-  daily_upload_target: 10    # stop uploading once this many Shorts are live today
+  daily_upload_target: 2    # stop uploading once this many Shorts are live today
 
 story:
-  min_seconds: 20
-  max_seconds: 30
+  # Retention window. The ~25-28s Shorts averaged ~40% viewed (≈10-11s watch),
+  # which caps a Short below the ~65%+ threshold YouTube needs to scale it.
+  # A 14-20s narration keeps the same real watch time (~10-11s) while pushing
+  # % viewed into the 60-70% range, so the algorithm keeps promoting it.
+  min_seconds: 14
+  max_seconds: 20
   language: "en"
   tone: "reddit_storytime"
   candidates_per_run: 2        # generate 2 stories, score them, keep the best (quality beats luck)
@@ -36,14 +44,25 @@ ai_providers:
       - "gemini-2.0-flash"
 
   openrouter:
-    # Free-tier slugs on OpenRouter change often. gpt-oss-20b and
-    # laguna-s return clean JSON; gemma/nemotron are good quality fallbacks.
+    # Free-tier slugs on OpenRouter change often (the provider re-checks the
+    # live /api/v1/models list at startup and silently drops any slug that
+    # OpenRouter no longer serves — dead slugs only ever 404). preferred_models
+    # is the ordered list we try first; fallback_models adds extra valid models
+    # to draw from if every preferred slug goes stale.
+    auto_discover: true
+    discovery_timeout_seconds: 5
     preferred_models:
-      - "openai/gpt-oss-20b:free"
-      - "poolside/laguna-s-2.1:free"
+      - "z-ai/glm-5.2:free"
+      - "qwen/qwen3.8-27b:free"
       - "google/gemma-4-31b-it:free"
       - "google/gemma-4-26b-a4b-it:free"
-      - "nvidia/nemotron-3-nano-30b-a3b:free"
+      - "poolside/laguna-s-2.1:free"
+      - "poolside/laguna-xs-2.1:free"
+      - "nvidia/nemotron-3-super-120b-a12b:free"
+      - "nvidia/nemotron-3-ultra-550b-a55b:free"
+    fallback_models:
+      - "nvidia/nemotron-3.5-lightning:free"
+      - "thinkingmachines/inkling:free"
 
   groq:
     preferred_models:

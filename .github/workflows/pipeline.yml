@@ -6,8 +6,12 @@ on:
     # gaming/entertainment Shorts shows the strongest window is 7-11 PM IST
     # (gaming peaks ~7-10 PM IST), so most sessions fall just BEFORE the peak
     # so the algorithm indexes each Short before the traffic surge hits.
-    # Sessions are spaced 45-60 min apart in the evening to avoid batch-dump
-    # throttling (multiple uploads minutes apart get starved — see Aug 7 data).
+    # Sessions are spaced 45-60 min apart; the first 1-2 that run each day do
+    # the upload and the rest exit once the daily target (2) is live. We keep
+    # the cap LOW because the Aug 2026 analytics export showed that uploading
+    # ~10 Shorts/day in a burst starves every video's test pool (the only
+    # winners were the 3 launched before the flood; the flooded ones got
+    # 1-300 views each).
     # Times below are UTC; add 5:30 for IST.
     #   05:00 UTC = 10:30 IST   (morning browse)
     #   08:00 UTC = 13:30 IST   (lunch break)
@@ -20,7 +24,7 @@ on:
     #   15:00 UTC = 20:30 IST   (peak)
     #   15:45 UTC = 21:15 IST   (peak)
     #   16:30 UTC = 22:00 IST   (late peak)
-    #   22:15 UTC = 03:45 IST   (final catch-up to top up to 10)
+    #   22:15 UTC = 03:45 IST   (catch-up only if the day missed its quota)
     - cron: "0 5 * * *"
     - cron: "0 8 * * *"
     - cron: "0 10 * * *"
@@ -81,7 +85,7 @@ jobs:
             COUNT=1
           fi
           echo "UTC hour $HOUR -> slot $SLOT, count $COUNT"
-          python main.py --count "$COUNT" --target 10 --slot "$SLOT"
+          python main.py --count "$COUNT" --target 2 --slot "$SLOT"
 
       - name: Persist daily count between runs
         run: |
