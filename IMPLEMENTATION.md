@@ -143,6 +143,27 @@ conversion mechanism. Fixed:
 - At the historical ~4,700 views, even a 1% conversion would have produced
   ~47 subscribers instead of 1.
 
+### 7. Saga mode — serialized stories that manufacture subscriptions
+
+CTA-based conversion caps out because a one-off Short gives a viewer no reason
+to *stay*. `utils/saga_state.py` + `story.saga` in config turn the feed into
+serialized storytelling instead:
+
+- Every Short is **Part N** of a saga (titles get a `(Part N)` suffix, the
+  description gets a deterministic "Part N+1 drops tomorrow — follow so you
+  don't miss the ending." line).
+- `build_saga_context()` injects a continuation block into the story prompt:
+  Part 1 ends on a hard cliffhanger; Parts 2..N continue the exact same plot
+  (the previous narration is fed back for continuity); the final part resolves
+  completely.
+- `state/saga_state.json` persists the chain between GitHub Actions runs
+  (committed alongside `daily_upload_count.json`). The state only advances
+  **after a Short truly uploads**, never in test mode.
+- `story.saga.parts_per_saga: 3` (0 = perpetual series that never resolves).
+- Net effect: viewers must subscribe to catch the ending — subscription
+  becomes *necessary* rather than requested, which is the strongest known
+  subscriber mechanic for story formats.
+
 Channel-side (manual, one-time): privatize the 2024 BGMI shorts so the
 channel reads as one niche — mixed content suppresses both reach and subs.
 

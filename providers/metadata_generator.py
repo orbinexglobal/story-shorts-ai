@@ -50,12 +50,30 @@ def _pick_best_title(titles: list[str], fallback_story: str) -> str:
     return fallback_story[: _MAX_TITLE_LEN]
 
 
-def generate_metadata(text_provider: TextProvider, story: str) -> VideoMetadata:
+def _apply_part_suffix(title: str, part_number: int | None) -> str:
+    """Append ' (Part N)' to saga titles so the series is findable."""
+    if not part_number:
+        return title
+    suffix = f" (Part {part_number})"
+    if f"part {part_number}" in title.lower():
+        return title
+    base = title.strip()[: _MAX_TITLE_LEN - len(suffix)]
+    return f"{base}{suffix}"
+
+
+def generate_metadata(
+    text_provider: TextProvider,
+    story: str,
+    part_number: int | None = None,
+    saga_line: str = "",
+) -> VideoMetadata:
     """
     Generate a title, description, and hashtags for the given story.
 
     A single provider call produces all three, so a Short's metadata costs
-    one API request instead of two.
+    one API request instead of two. Saga parts get a "(Part N)" title suffix
+    and the deterministic `saga_line` appended to the description (built in
+    code so the subscribe mechanic is never left up to the model).
     """
     prompt = _METADATA_PROMPT_PATH.read_text(encoding="utf-8").format(story=story)
 
@@ -67,10 +85,13 @@ def generate_metadata(text_provider: TextProvider, story: str) -> VideoMetadata:
         data = {}
         titles = []
     title = _pick_best_title(titles, story)
+    title = _apply_part_suffix(title, part_number)
 
     description = str(data.get("description", "")).strip()
     if not description:
         description = f"{story[:150]}. {_DEFAULT_DESCRIPTION_SUFFIX}"
+    if saga_line:
+        description = f"{description}\n\n{saga_line}"
 
     hashtags = [str(h) for h in data.get("hashtags", [])]
     if not hashtags:

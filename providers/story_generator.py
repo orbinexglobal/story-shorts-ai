@@ -20,6 +20,7 @@ from config.logging_setup import get_logger
 from config.settings import Config
 from providers.base import TextProvider
 from utils.json_extract import JsonExtractionError, extract_json
+from utils.saga_state import SagaState
 
 logger = get_logger(__name__)
 
@@ -275,12 +276,20 @@ class StoryCandidate:
         return all(self.scores.get(field, 0.0) >= floor for field, floor in _VIRAL_FLOORS.items())
 
 
-def _build_prompt(cfg: Config) -> str:
+def _build_prompt(cfg: Config, saga_context: str = "") -> str:
     template = _PROMPT_PATH.read_text(encoding="utf-8")
-    return template.format(min_seconds=cfg.story.min_seconds, max_seconds=cfg.story.max_seconds)
+    return template.format(
+        min_seconds=cfg.story.min_seconds,
+        max_seconds=cfg.story.max_seconds,
+        saga_context=saga_context,
+    )
 
 
-def generate_story(text_provider: TextProvider, cfg: Config) -> StoryCandidate:
+def generate_story(
+    text_provider: TextProvider,
+    cfg: Config,
+    saga_context: str = "",
+) -> StoryCandidate:
     """
     Generate several story candidates, score them, and return the best.
 
@@ -288,10 +297,14 @@ def generate_story(text_provider: TextProvider, cfg: Config) -> StoryCandidate:
     or low-scoring outputs are discarded and the provider is asked again
     (the text chain falls through to another model on repeated failure).
 
+    `saga_context` (see utils.saga_state.build_saga_context) injects the
+    continuation block so Part 2+ continues the same plot and every non-final
+    part ends on a subscription-forcing cliffhanger.
+
     Raises:
         StoryQualityError: if no clean candidate clears the threshold.
     """
-    prompt = _build_prompt(cfg)
+    prompt = _build_prompt(cfg, saga_context)
 
     for round_no in range(1, _MAX_ATTEMPTS + 1):
         candidates: list[StoryCandidate] = []

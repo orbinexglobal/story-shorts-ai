@@ -37,6 +37,7 @@ from video.renderer import RenderError, render_video
 from video.subtitles import generate_ass
 from video.validator import ValidationError, validate_output
 from utils.daily_count import read_daily_count, record_daily_count
+from utils.saga_state import advance_saga, build_saga_context, build_saga_line, load_saga
 from youtube.uploader import count_uploads_today, upload_video
 
 logger = get_logger(__name__)
@@ -77,14 +78,21 @@ def make_short(
     output_dir: Path,
     test_mode: bool,
     slot: int,
-) -> None:
-    """Make a single Short: story -> title -> voice -> caption -> cut -> render -> upload."""
+) -> str:
+    """Make a single Short: story -> title -> voice -> caption -> cut -> render -> upload.
+
+    Returns the narration text so the caller can advance the saga state after
+    the Short has actually been published (never in test mode).
+    """
     logger.info("=== Short %d/%d ===", index, total)
 
-    story = generate_story(text_provider, cfg)
+    saga_ctx = build_saga_context(cfg)
+    story = generate_story(text_provider, cfg, saga_context=saga_ctx)
     logger.info("Story (score=%.1f): %s", story.overall_score, story.text)
 
-    metadata = generate_metadata(text_provider, story.text)
+    part_number = load_saga(Path(cfg.story.saga.state_file)).part_number if cfg.story.saga.enabled else None
+    saga_line = build_saga_line(cfg)
+    metadata = generate_metadata(text_provider, story.text, part_number=part_number, saga_line=saga_line)
     logger.info("Title: %s", metadata.title)
 
     narration_path = output_dir / f"short_{index:02d}_narration.wav"
@@ -111,7 +119,7 @@ def make_short(
 
     if test_mode:
         logger.info("Test mode: upload skipped for this Short.")
-        return
+        return story.text
 
     video_id = upload_video(
         output_path, title=metadata.title,
@@ -120,6 +128,7 @@ def make_short(
         cfg=cfg,
     )
     logger.info("Uploaded: https://youtube.com/shorts/%s", video_id)
+    return story.text
 
 
 def _load_dotenv(path: Path = Path(".env")) -> None:
@@ -162,10 +171,14 @@ def run_pipeline(count: int, test_mode: bool, slot: int = 0, target: int | None 
             )
             break
         try:
-            make_short(i, count, text_provider, tts_provider, cfg, output_dir, test_mode, slot)
+            story_text = make_short(
+                i, count, text_provider, tts_provider, cfg, output_dir, test_mode, slot,
+            )
             made += 1
             if not test_mode and target:
                 record_daily_count(uploaded_today + made)
+            if not test_mode and cfg.story.saga.enabled:
+                advance_saga(story_text, cfg, Path(cfg.story.saga.state_file))
         except (StoryQualityError, ProviderError, NoGameplayAssetsError,
                 RenderError, ValidationError) as exc:
             logger.error("Short %d failed: %s", i, exc)
