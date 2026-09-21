@@ -338,6 +338,17 @@ def generate_story(
                 )
                 continue
 
+            word_count = len(story_text.split())
+            if not (cfg.story.min_words <= word_count <= cfg.story.max_words):
+                logger.warning(
+                    "Round %d, candidate %d/%d discarded: %d words "
+                    "(target %d-%d for %d-%ds narration)",
+                    round_no, i + 1, cfg.story.candidates_per_run, word_count,
+                    cfg.story.min_words, cfg.story.max_words,
+                    cfg.story.min_seconds, cfg.story.max_seconds,
+                )
+                continue
+
             candidate = StoryCandidate(text=story_text, scores=scores)
             candidates.append(candidate)
             logger.info(

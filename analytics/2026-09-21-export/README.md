@@ -47,8 +47,10 @@ cadence changes made in Sep 2026.
   `story.max_seconds: 20`. The same ~10-11s of watch time now lands at
   ~60-70% retention instead of ~40%, which is the range YouTube promotes.
 - **Story prompt re-written.** Front-loaded hook (first sentence carries the
-  strangest image), a new escalation every 2-3s, ~55-65 words hard cap,
-  "re-read" twist endings engineered to trigger replays.
+  strangest image), a new escalation every 2-3s, 32-48 word target now enforced
+  in code (the 21 Sep run showed the model ignores a bare prompt limit — it
+  emitted a 47.5s narration; `story_generator` now discards out-of-window
+  candidates), "re-read" twist endings engineered to trigger replays.
 - **Publishing reliability fixed** (OpenRouter multi-key rotation + dead-model
   discovery, OAuth app published so refresh tokens stop expiring) so the daily
   schedule actually runs every day again.

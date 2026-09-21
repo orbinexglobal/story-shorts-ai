@@ -49,6 +49,8 @@ class StoryConfig:
 
     min_seconds: int
     max_seconds: int
+    min_words: int
+    max_words: int
     language: str
     tone: str
     candidates_per_run: int
@@ -242,6 +244,8 @@ def load_config(path: Path | None = None) -> Config:
         story=StoryConfig(
             min_seconds=story["min_seconds"],
             max_seconds=story["max_seconds"],
+            min_words=story.get("min_words", 32),
+            max_words=story.get("max_words", 48),
             language=story["language"],
             tone=story["tone"],
             candidates_per_run=story["candidates_per_run"],

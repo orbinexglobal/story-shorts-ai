@@ -19,9 +19,14 @@ class _StubProvider(TextProvider):
         return next(self._responses)
 
 
-def _story_json(score: float) -> str:
+def _story_json(score: float, story: str | None = None) -> str:
     return json.dumps({
-        "story": "A tiny robot learns to say hello.",
+        "story": story or (
+            "A tiny robot learns to say hello. It taps the door every "
+            "morning, but nobody answers. Then one night the door swings "
+            "open. A stranger in a hacker mask runs a hand down the robot "
+            "and whispers a name that changes everything."
+        ),
         "hook_score": score, "curiosity_score": score,
         "emotional_flow_score": score, "ending_score": score,
         "simplicity_score": score, "retention_score": score,
@@ -41,3 +46,12 @@ def test_generate_story_raises_below_threshold():
     provider = _StubProvider(low_scores)
     with pytest.raises(StoryQualityError):
         generate_story(provider, cfg)
+
+
+def test_generate_story_rejects_out_of_window_word_counts():
+    cfg = load_config()
+    too_long = " ".join(["story"] * (cfg.story.max_words + 150))
+    too_short = "nope"
+    provider = _StubProvider([too_long, too_short, _story_json(9.0), _story_json(9.0)])
+    best = generate_story(provider, cfg)
+    assert cfg.story.min_words <= len(best.text.split()) <= cfg.story.max_words

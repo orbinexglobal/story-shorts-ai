@@ -115,8 +115,10 @@ score** and **per-dimension floors**:
 ### 6. Viral-content prompts (`prompts/`)
 
 - `story_prompt.txt`: force a **hook in the first 2 seconds** (first sentence
-  carries the strangest image), a new escalation every 2-3s, ~55-65 spoken
-  words, a **re-read twist ending** (engineered to trigger replays) + an open
+  carries the strangest image), a new escalation every 2-3s, 32-48 words (the
+  Aug 21 run proved the model ignores a bare "HARD LIMIT", so `story_generator`
+  now enforces `min_words`/`max_words` in code and regenerates anything out of
+  window), a **re-read twist ending** (engineered to trigger replays) + an open
   question that invites comments ("What would you have done?"), all inside a
   **14-20s retention window** (a sub-20s Short at ~60-70% retention scales;
   a 28s Short at ~43% caps out ~1.5-2k). Adds a single soft **subscribe CTA**
@@ -268,8 +270,9 @@ See `analytics/2026-09-21-export/`. The year totals:
 
 ## What this repo changes
 
-- **Retention window**: 14-20s (`story.min_seconds: 14`, `max_seconds: 20`);
-  prompt enforces hook-by-second-2, ~55-65 words, replay-loop endings.
+- **Retention window**: 14-20s (`story.min_seconds: 14`, `max_seconds: 20`)
+  with a code-enforced 32-48 word gate so the model can't blow past it;
+  prompt enforces hook-by-second-2, replay-loop endings.
 - **Cadence**: 2/day cap (`schedule.daily_upload_target: 2`, workflow
   `--target 2`); sessions stay spaced so uploads never arrive in a batch.
 - **Reliability**: OpenRouter rotation + dead-model discovery, published OAuth
