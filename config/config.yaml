@@ -25,13 +25,15 @@ story:
   min_seconds: 14
   max_seconds: 20
   # Code-enforced narration length. Word count at the 0.95 speaking rate is
-  # roughly words = seconds * 2.4, so a 14-20s narration lands at ~33-48
+  # roughly words = seconds * 2.4, so a 14-19s narration lands at ~32-44
   # words. These bounds are enforced in story_generator (reject + regenerate),
   # because the model routinely exceeds even a "HARD LIMIT" in plain text —
   # the Aug 2026 log showed a 47.5s narration that blew the whole retention
-  # strategy in a single Short.
+  # strategy in a single Short. 44 (not 48) keeps the top end short: at the
+  # ~12s of real watch time these Shorts grab, 44 words = ~19s = ~63% viewed,
+  # while 48 words = ~20s would land under the ~65% promotion threshold.
   min_words: 32
-  max_words: 48
+  max_words: 44
   language: "en"
   tone: "reddit_storytime"
   candidates_per_run: 2        # generate 2 stories, score them, keep the best (quality beats luck)

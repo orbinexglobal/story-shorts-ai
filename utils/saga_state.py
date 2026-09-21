@@ -121,8 +121,8 @@ def build_saga_context(cfg: Config, path: Path | None = None) -> str:
             f"This is the FIRST part{total_line} of a continuing story.\n"
             "End this part with a twist that opens an even BIGGER mystery "
             "(a hard cliffhanger) — the story must NOT fully resolve.\n"
-            'Final spoken line must be: "Part 2 drops tomorrow — follow '
-            'TinyPop TV so you don\'t miss it."'
+            'Final spoken line must be: "What would you do? Part 2 drops '
+            "tomorrow — follow TinyPop TV so you don't miss it.\""
         )
 
     total_line = f" of {ctx.total_parts}" if ctx.total_parts else ""
@@ -138,15 +138,15 @@ def build_saga_context(cfg: Config, path: Path | None = None) -> str:
         prompt += (
             f"This is the FINAL part ({ctx.part_number} of {ctx.total_parts}).\n"
             "Resolve the mystery COMPLETELY — no cliffhanger, a definite "
-            'ending. Then add one normal follow line like "Follow TinyPop TV '
-            'for more stories."'
+            'ending. Then end with: "What would you have done? Follow '
+            'TinyPop TV for more stories."'
         )
     else:
         prompt += (
             "End this part on a HARD cliffhanger — cut off at the single most "
-            f'dramatic moment.\nFinal spoken line must be: "Part '
-            f'{ctx.part_number + 1} drops tomorrow — follow TinyPop TV so you '
-            "don't miss it.\""
+            f'dramatic moment.\nFinal spoken line must be: "What would you '
+            f'do? Part {ctx.part_number + 1} drops tomorrow — follow TinyPop '
+            "TV so you don't miss it.\""
         )
     return prompt
 
