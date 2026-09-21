@@ -53,3 +53,24 @@ def test_generate_metadata_falls_back_on_garbage():
     assert _MIN_TITLE_LEN <= len(metadata.title) <= _MAX_TITLE_LEN
     assert metadata.description  # non-empty fallback description
     assert metadata.hashtags  # non-empty fallback hashtags
+
+
+def test_fallback_title_truncates_at_sentence_boundary():
+    story = (
+        "The key only worked when I was alone. I found it in my coat. "
+        "Each turn made the lights flicker. On the third turn, a whisper "
+        "called my name."
+    )
+    metadata = generate_metadata(_StubProvider("no json here"), story)
+
+    assert metadata.title == "The key only worked when I was alone."
+    assert _MIN_TITLE_LEN <= len(metadata.title) <= _MAX_TITLE_LEN
+    assert "\u2026" not in metadata.title
+
+
+def test_fallback_title_ellipsizes_when_no_sentence_boundary():
+    story = "P" * 30 + " then one very long unbroken sentence with no punctuation"
+    metadata = generate_metadata(_StubProvider("no json here"), story)
+
+    assert len(metadata.title) <= _MAX_TITLE_LEN
+    assert metadata.title.endswith("\u2026")

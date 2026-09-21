@@ -38,7 +38,7 @@ from video.subtitles import generate_ass
 from video.validator import ValidationError, validate_output
 from utils.daily_count import read_daily_count, record_daily_count
 from utils.saga_state import advance_saga, build_saga_context, build_saga_line, load_saga
-from youtube.uploader import count_uploads_today, upload_video
+from youtube.uploader import check_youtube_credentials, count_uploads_today, upload_video
 
 logger = get_logger(__name__)
 
@@ -162,6 +162,16 @@ def run_pipeline(count: int, test_mode: bool, slot: int = 0, target: int | None 
     if not test_mode and target:
         uploaded_today = _daily_uploaded_count(cfg, target)
         logger.info("Already uploaded today: %d/%d", uploaded_today, target)
+
+    if not test_mode and (not target or uploaded_today < target):
+        try:
+            check_youtube_credentials()
+            logger.info("YouTube credentials valid; upload will succeed at the end of each Short.")
+        except ProviderError as exc:
+            logger.error(
+                "Upload credentials not usable; aborting before any generation: %s", exc,
+            )
+            return 1
 
     made = 0
     for i in range(1, count + 1):

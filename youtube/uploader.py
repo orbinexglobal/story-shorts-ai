@@ -13,6 +13,42 @@ from youtube.auth import get_credentials
 logger = get_logger(__name__)
 
 
+def check_youtube_credentials() -> None:
+    """Fail fast when the OAuth refresh token is stale.
+
+    Exchanges the refresh token for an access token (one HTTP request) so a
+    dead YOUTUBE_REFRESH_TOKEN fails BEFORE the pipeline generates a story,
+    renders a video, and only then discovers it can't upload at the very end.
+    In the Aug 2026 outage this wasted ~5 minutes per run on rate-limited
+    generations before hitting invalid_grant on the upload itself.
+
+    Raises:
+        ProviderError: with actionable SETUP.md guidance when the token is
+        missing or stale (invalid_grant), or the token exchange fails.
+    """
+    try:
+        from google.auth.transport.requests import Request
+    except ImportError as exc:
+        raise ProviderError(
+            "google-auth is not installed. Run `pip install -r requirements.txt`."
+        ) from exc
+
+    try:
+        creds = get_credentials()
+        creds.refresh(Request())
+    except Exception as exc:  # noqa: BLE001 - any auth failure is fatal preflight
+        detail = str(exc)
+        hint = ""
+        if "invalid_grant" in detail.lower():
+            hint = (
+                " The saved YOUTUBE_REFRESH_TOKEN is stale or revoked. Re-run "
+                "`python scripts/get_youtube_refresh_token.py --client-secrets "
+                "client_secret.json`, then update the YOUTUBE_REFRESH_TOKEN "
+                "GitHub secret."
+            )
+        raise ProviderError(f"YouTube credentials invalid: {detail}.{hint}") from exc
+
+
 def _build_client():
     """Lazily import and build a YouTube Data API client."""
     try:

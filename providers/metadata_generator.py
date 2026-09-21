@@ -39,6 +39,25 @@ class VideoMetadata:
         return f"{self.description}\n\n{' '.join(self.hashtags)}"
 
 
+def _truncate_cleanly(text: str, max_len: int) -> str:
+    """Truncate without splitting a word, preferring a sentence boundary.
+
+    Only used on the fallback path (non-JSON model output), where a raw
+    ``text[:max_len]`` cut can produce an ugly mid-sentence title.
+    """
+    text = text.strip()
+    if len(text) <= max_len:
+        return text
+    window = text[:max_len]
+    sentence_end = max(window.rfind(". "), window.rfind("! "), window.rfind("? "))
+    if sentence_end > max_len * 0.5:
+        return window[: sentence_end + 1].rstrip()
+    word_end = window.rfind(" ")
+    if word_end > 0:
+        return window[:word_end].rstrip(",.;:") + "\u2026"
+    return window.rstrip(",.;:") + "\u2026"
+
+
 def _pick_best_title(titles: list[str], fallback_story: str) -> str:
     """Prefer a title within the length window; otherwise trim the first one."""
     for title in titles:
@@ -46,8 +65,8 @@ def _pick_best_title(titles: list[str], fallback_story: str) -> str:
         if not cleaned.isupper() and _MIN_TITLE_LEN <= len(cleaned) <= _MAX_TITLE_LEN:
             return cleaned
     if titles:
-        return titles[0].strip()[: _MAX_TITLE_LEN]
-    return fallback_story[: _MAX_TITLE_LEN]
+        return _truncate_cleanly(titles[0], _MAX_TITLE_LEN)
+    return _truncate_cleanly(fallback_story, _MAX_TITLE_LEN)
 
 
 def _apply_part_suffix(title: str, part_number: int | None) -> str:
@@ -57,7 +76,7 @@ def _apply_part_suffix(title: str, part_number: int | None) -> str:
     suffix = f" (Part {part_number})"
     if f"part {part_number}" in title.lower():
         return title
-    base = title.strip()[: _MAX_TITLE_LEN - len(suffix)]
+    base = _truncate_cleanly(title, _MAX_TITLE_LEN - len(suffix))
     return f"{base}{suffix}"
 
 

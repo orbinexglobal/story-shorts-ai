@@ -73,10 +73,10 @@ def load_saga(path: Path = _STATE_FILE) -> SagaState:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         state = SagaState.from_dict(data)
-        logger.info("Saga state loaded: next part %d", state.part_number)
+        logger.debug("Saga state loaded: next part %d", state.part_number)
         return state
     except (FileNotFoundError, json.JSONDecodeError, KeyError, ValueError):
-        logger.info("No saga state on disk; starting a fresh saga.")
+        logger.debug("No saga state on disk; starting a fresh saga.")
         return SagaState()
 
 
