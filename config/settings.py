@@ -35,6 +35,15 @@ class ScheduleConfig:
 
 
 @dataclass(frozen=True)
+class SagaConfig:
+    """Serialize stories into cliffhanger parts that manufacture subscribers."""
+
+    enabled: bool
+    parts_per_saga: int   # 0 = never resolve (perpetual series)
+    state_file: str
+
+
+@dataclass(frozen=True)
 class StoryConfig:
     """Controls story generation constraints and scoring thresholds."""
 
@@ -44,6 +53,7 @@ class StoryConfig:
     tone: str
     candidates_per_run: int
     min_acceptable_score: float
+    saga: SagaConfig
 
 
 @dataclass(frozen=True)
@@ -236,6 +246,11 @@ def load_config(path: Path | None = None) -> Config:
             tone=story["tone"],
             candidates_per_run=story["candidates_per_run"],
             min_acceptable_score=story["min_acceptable_score"],
+            saga=SagaConfig(
+                enabled=bool(story.get("saga", {}).get("enabled", False)),
+                parts_per_saga=int(story.get("saga", {}).get("parts_per_saga", 0)),
+                state_file=story.get("saga", {}).get("state_file", "state/saga_state.json"),
+            ),
         ),
         ai_providers=AIProvidersConfig(
             fallback_order=providers["fallback_order"],

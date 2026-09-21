@@ -28,6 +28,15 @@ story:
   tone: "reddit_storytime"
   candidates_per_run: 2        # generate 2 stories, score them, keep the best (quality beats luck)
   min_acceptable_score: 7.0    # out of 10; below this, discard and retry
+  # Subscriber engine: serialize stories into cliffhanger "parts" so viewers
+  # have to subscribe to catch the ending. Each Short is Part N of a chain;
+  # the narration ends on an unresolved twist + "Part N+1 drops tomorrow —
+  # follow so you don't miss it." After `parts_per_saga` parts the chain
+  # resolves fully and a new saga starts.
+  saga:
+    enabled: true
+    parts_per_saga: 3      # 0 = never resolve (keep the series going forever)
+    state_file: "state/saga_state.json"
 
 ai_providers:
   # Order matters: first provider tried first, falls back down the list.
